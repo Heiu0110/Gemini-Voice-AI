@@ -1,0 +1,7 @@
+{
+  "name": "Gemini Voice Studio",
+  "description": "Ứng dụng AI đàm thoại hai chế độ có tính năng trò chuyện bằng giọng nói hai chiều theo thời gian thực bằng Gemini Live API và trình tổng hợp văn bản thành giọng nói chất lượng cao.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
