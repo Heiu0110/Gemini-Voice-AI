@@ -3,6 +3,7 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Mic, MicOff, AlertCircle, Loader2 } from 'lucide-react';
 import { float32ToB64PCM, base64ToUint8Array, pcmToAudioBuffer } from '../services/audioUtils';
 import Visualizer from './Visualizer';
+import Notification, { NotificationType } from './Notification';
 import { VoiceName } from '../types';
 
 interface LiveSessionProps {
@@ -11,9 +12,15 @@ interface LiveSessionProps {
 
 const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
   const [isRecording, setIsRecording] = useState(false);
-  const [status, setStatus] = useState<string>('Ready to connect');
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>('Sẵn sàng kết nối');
   const [selectedVoice, setSelectedVoice] = useState<VoiceName>(VoiceName.Zephyr);
+  
+  // Notification State
+  const [notification, setNotification] = useState<{ visible: boolean; message: string; type: NotificationType }>({
+    visible: false,
+    message: '',
+    type: 'info'
+  });
 
   // Refs for audio context and state management
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -26,6 +33,10 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
   
   // For Visualization
   const outputAnalyserNodeRef = useRef<GainNode | null>(null); // Using gain as a tap point
+
+  const showNotification = (message: string, type: NotificationType = 'info') => {
+      setNotification({ visible: true, message, type });
+  };
 
   const cleanup = useCallback(() => {
     // Stop all active audio sources
@@ -55,12 +66,11 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
     sessionPromiseRef.current = null;
 
     setIsRecording(false);
-    setStatus('Ready to connect');
+    setStatus('Sẵn sàng kết nối');
   }, []);
 
   const startSession = async () => {
-    setError(null);
-    setStatus('Initializing audio...');
+    setStatus('Đang khởi tạo âm thanh...');
 
     try {
       // 1. Initialize Audio Contexts
@@ -79,7 +89,7 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
 
-      setStatus('Connecting to Gemini...');
+      setStatus('Đang kết nối với Gemini...');
 
       // 3. Connect to Gemini Live API
       const ai = new GoogleGenAI({ apiKey });
@@ -88,8 +98,9 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         callbacks: {
           onopen: () => {
-            setStatus('Connected! Start talking.');
+            setStatus('Đã kết nối! Hãy bắt đầu nói chuyện.');
             setIsRecording(true);
+            showNotification('Kết nối thành công! Đã bắt đầu trò chuyện.', 'success');
 
             // Setup Input Stream Processing
             const source = inputCtx.createMediaStreamSource(stream);
@@ -125,7 +136,7 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
              // Handle interruptions
              const interrupted = message.serverContent?.interrupted;
              if (interrupted) {
-               setStatus('Interrupted...');
+               setStatus('Bị gián đoạn...');
                activeSourcesRef.current.forEach(s => {
                  try { s.stop(); } catch(e) {}
                });
@@ -162,12 +173,18 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
           },
           onclose: (e) => {
             console.log("Session closed", e);
-            setStatus("Disconnected");
+            setStatus("Đã ngắt kết nối");
             cleanup();
           },
-          onerror: (e) => {
+          onerror: (e: any) => {
             console.error("Session error", e);
-            setError("Connection error occurred.");
+            
+            const errorMessage = e.message || e.toString();
+            if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('Resource has been exhausted')) {
+               showNotification('Đã hết hạn mức sử dụng (Quota Exceeded). Vui lòng thử lại sau.', 'error');
+            } else {
+               showNotification('Đã xảy ra lỗi kết nối Live API.', 'error');
+            }
             cleanup();
           }
         },
@@ -176,13 +193,18 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } }
           },
-          systemInstruction: "You are a helpful, witty, and concise AI assistant.",
+          systemInstruction: "Bạn là một trợ lý AI hữu ích, vui tính và súc tích. Hãy giao tiếp bằng Tiếng Việt.",
         }
       });
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to start session");
+      const errorMessage = err.message || err.toString();
+      if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+        showNotification('Không thể bắt đầu phiên: Đã hết hạn mức sử dụng.', 'error');
+      } else {
+        showNotification('Không thể bắt đầu phiên. Vui lòng kiểm tra quyền truy cập micro.', 'error');
+      }
       cleanup();
     }
   };
@@ -194,18 +216,24 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
 
   return (
     <div className="flex flex-col items-center justify-center p-6 space-y-8 w-full max-w-2xl mx-auto">
+      <Notification 
+          isVisible={notification.visible}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(prev => ({ ...prev, visible: false }))}
+      />
       
       <div className="w-full text-center space-y-2">
         <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-          Live Conversation
+          Trò chuyện trực tiếp
         </h2>
         <p className="text-slate-400">
-          Chat naturally with Gemini 2.5 Live. Real-time, bidirectional audio.
+          Trò chuyện tự nhiên với Gemini 2.5 Live. Âm thanh hai chiều theo thời gian thực.
         </p>
       </div>
 
       <div className="flex items-center space-x-4">
-         <label className="text-sm font-medium text-slate-300">Voice:</label>
+         <label className="text-sm font-medium text-slate-300">Giọng đọc:</label>
          <select 
            value={selectedVoice}
            onChange={(e) => setSelectedVoice(e.target.value as VoiceName)}
@@ -229,12 +257,12 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
           {isRecording ? (
             <>
               <MicOff className="w-6 h-6" />
-              <span>End Call</span>
+              <span>Kết thúc</span>
             </>
           ) : (
             <>
                <Mic className="w-6 h-6 text-blue-400" />
-               <span>Start Call</span>
+               <span>Bắt đầu gọi</span>
             </>
           )}
         </button>
@@ -258,17 +286,10 @@ const LiveSession: React.FC<LiveSessionProps> = ({ apiKey }) => {
              />
         ) : (
             <div className="text-slate-600 text-sm">
-                Audio visualization will appear here
+                Biểu đồ âm thanh sẽ xuất hiện tại đây
             </div>
         )}
       </div>
-
-      {error && (
-        <div className="flex items-center space-x-2 text-red-400 bg-red-900/20 px-4 py-2 rounded-lg border border-red-900/50">
-          <AlertCircle className="w-4 h-4" />
-          <span className="text-sm">{error}</span>
-        </div>
-      )}
     </div>
   );
 };

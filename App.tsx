@@ -19,8 +19,8 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-200">
          <div className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 max-w-md text-center">
-            <h1 className="text-2xl font-bold mb-4 text-red-400">Missing API Key</h1>
-            <p>Please ensure <code>process.env.API_KEY</code> is configured in your environment.</p>
+            <h1 className="text-2xl font-bold mb-4 text-red-400">Thiếu API Key</h1>
+            <p>Vui lòng đảm bảo <code>process.env.API_KEY</code> đã được cấu hình trong môi trường của bạn.</p>
          </div>
       </div>
     );
@@ -40,7 +40,7 @@ const App: React.FC = () => {
             </h1>
           </div>
           <div className="text-xs text-slate-500 font-mono hidden sm:block">
-            Powered by Gemini 2.5
+            Hỗ trợ bởi Gemini 2.5
           </div>
         </div>
       </header>
@@ -59,7 +59,7 @@ const App: React.FC = () => {
             }`}
           >
             <Mic className="w-4 h-4" />
-            <span>Live Conversation</span>
+            <span>Trò chuyện trực tiếp</span>
           </button>
           <button
             onClick={() => setActiveTab(ActiveTab.TTS)}
@@ -70,7 +70,7 @@ const App: React.FC = () => {
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            <span>Text to Speech</span>
+            <span>Chuyển văn bản thành giọng nói</span>
           </button>
         </div>
 
@@ -93,7 +93,7 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-6 text-center text-slate-500 text-sm">
-        <p>&copy; {new Date().getFullYear()} Gemini Voice Studio. Built with Google Gen AI SDK.</p>
+        <p>&copy; {new Date().getFullYear()} Gemini Voice Studio. Xây dựng với Google Gen AI SDK.</p>
       </footer>
     </div>
   );
